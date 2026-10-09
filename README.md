@@ -16,7 +16,7 @@ Docker is not required for development or deployment.
 ## Local setup
 
 1. Install Node.js 22 or newer.
-2. Create a Postgres database. For Neon, copy both the pooled connection string and the direct connection string.
+2. Create a Postgres database. For Neon, copy the pooled connection string into `DATABASE_URL` and the direct connection string into `DATABASE_URL_UNPOOLED`.
 3. Copy `.env.example` to `.env.local` and fill in the variables. Do not commit `.env.local`.
 4. Install and migrate:
 
@@ -47,7 +47,7 @@ Demo student accounts are created only when `ENABLE_DEMO_SEED=true` and the envi
 | Name | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Pooled Postgres URL used by the running app |
-| `DIRECT_URL` | Direct Postgres URL used by Prisma migrations |
+| `DATABASE_URL_UNPOOLED` | Direct Postgres URL used by Prisma migrations |
 | `SETUP_TOKEN` | Protects the one-time `/setup` page |
 | `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` | One-time CLI bootstrap |
 | `ENABLE_DEMO_SEED` / `SEED_DEMO_PASSWORD` | Development and preview sample accounts |
@@ -60,7 +60,7 @@ Demo student accounts are created only when `ENABLE_DEMO_SEED=true` and the envi
 
 Use a separate database for development, preview, and production. A preview deployment must not receive the production `DATABASE_URL`.
 
-For Neon on Vercel, use the pooled host in `DATABASE_URL` with `pgbouncer=true` and a small connection limit, and the non-pooled host in `DIRECT_URL`. Prisma is constructed once per warm serverless instance. Do not open a new client per helper call beyond the shared module.
+For Neon on Vercel, use the pooled host in `DATABASE_URL` with `pgbouncer=true` and a small connection limit, and the non-pooled host in `DATABASE_URL_UNPOOLED`. The Neon integration also provides `POSTGRES_PRISMA_URL`; the server prefers that value when it is present. Prisma is constructed once per warm serverless instance. Do not open a new client per helper call beyond the shared module.
 
 ## Deployment
 
@@ -74,7 +74,7 @@ For Neon on Vercel, use the pooled host in `DATABASE_URL` with `pgbouncer=true` 
 npx prisma migrate deploy
 ```
 
-Run that with the production `DIRECT_URL` from a trusted machine or a protected GitHub Action. The application build does not migrate automatically, so a preview cannot change production by being built.
+Run that with the production `DATABASE_URL_UNPOOLED` value from a trusted machine or a protected GitHub Action. The application build does not migrate automatically, so a preview cannot change production by being built.
 
 6. Deploy a preview from a pull request. Check sign-in, a virtual credit, a simulated order, and that a reload still shows the ledger.
 7. Promote the verified deployment to production.
@@ -87,7 +87,7 @@ Scheduled paths:
 - `/api/cron?job=snapshots` stores portfolio snapshots
 - `/api/cron?job=competitions` refreshes ranks
 
-Vercel Hobby cron is limited to daily schedules. The committed schedules assume a plan that allows them. Resting orders are also evaluated when that student opens the portfolio, so practice does not depend on a permanent server process.
+The committed schedules run once per day so a Vercel Hobby project can deploy. Hobby timing is only guaranteed within the scheduled hour. Resting orders are also evaluated when that student opens the portfolio, so practice does not depend on a permanent server process. A Pro project can tighten `/api/cron?job=evaluate` if faster checks are required.
 
 ## Market data
 

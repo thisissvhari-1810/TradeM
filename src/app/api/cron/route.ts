@@ -11,7 +11,7 @@ function assertCron(request: Request) {
   if (!secret || header !== `Bearer ${secret}`) throw new AppError("Unauthorized.", 401);
 }
 
-export async function POST(request: Request) {
+async function runCron(request: Request) {
   try {
     await connection();
     assertCron(request);
@@ -32,4 +32,12 @@ export async function POST(request: Request) {
     const status = error instanceof AppError ? error.status : 500;
     return Response.json({ error: message }, { status });
   }
+}
+
+export function GET(request: Request) {
+  return runCron(request);
+}
+
+export function POST(request: Request) {
+  return runCron(request);
 }
