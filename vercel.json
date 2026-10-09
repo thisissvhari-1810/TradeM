@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron?job=evaluate",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron?job=snapshots",
+      "schedule": "30 10 * * 1-5"
+    },
+    {
+      "path": "/api/cron?job=competitions",
+      "schedule": "45 10 * * 1-5"
+    }
+  ]
+}
