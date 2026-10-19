@@ -3,6 +3,8 @@ import { AppError } from "@/lib/http";
 import { applyAdverseSlippage, rupeesToPaise } from "@/lib/money";
 import { DEMO_UNIVERSE, demoIntraday, demoDailyCandles, demoQuote, type Candle, type DemoQuote } from "@/lib/market/demo";
 import { nseCashSession } from "@/lib/market/clock";
+import { dhanCandles, dhanQuote } from "@/server/dhan-market";
+import { aggregatePeriod, type ChartSpan } from "@/lib/market/spans";
 import { configuredProvider, getHolidays } from "@/server/settings";
 import { DEFAULT_CHARGES } from "@/lib/trading/settings";
 import type { DataMode } from "@prisma/client";
@@ -151,6 +153,8 @@ export async function getQuote(symbol: string): Promise<DemoQuote> {
       quote = demoQuote({ symbol: instrument.symbol, name: instrument.name, exchange: instrument.exchange, sector: instrument.sector, basePaise: instrument.basePaise, tickPaise: instrument.tickPaise }, now, holidays);
     } else if (provider === "twelvedata") {
       quote = await twelveQuote(instrument.symbol, instrument.exchange, now, holidays);
+    } else if (provider === "dhan") {
+      quote = await dhanQuote(instrument.symbol, instrument.dhanSecurityId, now, holidays);
     } else {
       quote = await alphaQuote(instrument.symbol, now, holidays);
     }
@@ -164,19 +168,30 @@ export async function getQuote(symbol: string): Promise<DemoQuote> {
   }
 }
 
-export async function getCandles(symbol: string, timeframe: "5m" | "15m" | "1h" | "1d"): Promise<{ candles: Candle[]; mode: string; source: string; message: string }> {
+function demoSpan(symbol: string, basePaise: number, now: Date, timeframe: ChartSpan): Candle[] {
+  if (timeframe === "1h") return demoIntraday(symbol, basePaise, now, 60);
+  if (timeframe === "1m" || timeframe === "3m" || timeframe === "5m") return demoIntraday(symbol, basePaise, now, 5);
+  const count = timeframe === "1y" ? 252 : timeframe === "5y" ? 1260 : 1500;
+  const daily = demoDailyCandles(symbol, basePaise, now, count);
+  if (timeframe === "1w") return aggregatePeriod(daily, "week");
+  if (timeframe === "1mo") return aggregatePeriod(daily, "month");
+  return daily;
+}
+
+export async function getCandles(symbol: string, timeframe: ChartSpan): Promise<{ candles: Candle[]; mode: string; source: string; message: string }> {
   const instrument = await prisma.instrument.findUnique({ where: { symbol: symbol.toUpperCase() } });
   if (!instrument) throw new AppError("Instrument is not available.", 404);
   const provider = configuredProvider();
   const now = new Date();
   if (provider === "demo") {
-    const candles = timeframe === "1d" ? demoDailyCandles(instrument.symbol, instrument.basePaise, now) : demoIntraday(instrument.symbol, instrument.basePaise, now, timeframe === "5m" ? 5 : timeframe === "15m" ? 15 : 60);
+    const candles = demoSpan(instrument.symbol, instrument.basePaise, now, timeframe);
     return { candles, mode: "DEMO", source: "tradelab-demo", message: "Demo candles are synthetic. They are not exchange history." };
   }
+  if (provider === "dhan") return dhanCandles(instrument.symbol, instrument.dhanSecurityId, timeframe, now);
   const key = process.env.MARKET_DATA_API_KEY;
   if (!key) throw new AppError("MARKET_DATA_API_KEY is not configured.", 503);
   if (provider === "twelvedata") {
-    const interval = timeframe === "1d" ? "1day" : timeframe === "1h" ? "1h" : timeframe;
+    const interval = timeframe === "1h" ? "1h" : timeframe === "5m" ? "5min" : timeframe === "1m" ? "1min" : "1day";
     const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(instrument.symbol)}&exchange=${encodeURIComponent(instrument.exchange)}&interval=${interval}&outputsize=180&apikey=${encodeURIComponent(key)}`;
     const payload = (await fetchJson(url)) as { values?: Array<Record<string, string>>; status?: string; message?: string };
     if (!payload.values) throw new AppError(payload.message ?? "No candle data returned.", 502);
@@ -212,14 +227,15 @@ export async function getCandles(symbol: string, timeframe: "5m" | "15m" | "1h" 
 
 export async function searchInstruments(query: string) {
   const q = query.trim();
-  return prisma.instrument.findMany({
+  const rows = await prisma.instrument.findMany({
     where: q
       ? { isActive: true, OR: [{ symbol: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }
-      : { isActive: true },
-    orderBy: { symbol: "asc" },
-    take: 20,
+      : { isActive: true, sector: "EQ" },
+    orderBy: { name: "asc" },
+    take: 40,
     select: { symbol: true, name: true, exchange: true, sector: true, lotSize: true, tickPaise: true },
   });
+  return [...rows].sort((a, b) => Number(/^\d/.test(a.symbol)) - Number(/^\d/.test(b.symbol)) || a.name.localeCompare(b.name));
 }
 
 export { DEMO_UNIVERSE };

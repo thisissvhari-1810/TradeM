@@ -6,6 +6,9 @@ import { calculateCharges } from "@/lib/trading/fees";
 import { DEFAULT_CHARGES, DEFAULT_RISK } from "@/lib/trading/settings";
 import { can, canReadStudent } from "@/lib/auth/permissions";
 import { demoQuote } from "@/lib/market/demo";
+import { bollinger, ema, sma, vwap } from "@/lib/market/indicators";
+import { fibLevels } from "@/components/drawing-model";
+import { summarizeRoundTrip, type FillLeg } from "@/lib/trading/closed-trade";
 import { compositeScore } from "@/lib/trading/ranking";
 
 const quote = (overrides: Partial<QuoteView> = {}): QuoteView => ({
@@ -151,6 +154,46 @@ describe("permissions and competitions", () => {
       learningWeight: 0,
     });
     expect(score.returnBps).toBe(0);
+  });
+});
+
+describe("indicators", () => {
+  it("computes SMA, EMA, Bollinger bands, and cumulative VWAP from the supplied bars", () => {
+    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    expect(sma(values, 3)[2]).toBe(2);
+    expect(ema(values, 3)[2]).toBe(2);
+    expect(ema(values, 3)[9]).toBeGreaterThan(8);
+    const bands = bollinger(values, 3, 2);
+    expect(bands.middle[2]).toBe(2);
+    expect(bands.upper[2]).toBeGreaterThan(bands.middle[2] ?? 0);
+    expect(bands.lower[2]).toBeLessThan(bands.middle[2] ?? 0);
+    const series = vwap([{ high: 3, low: 1, close: 2, volume: 10 }, { high: 4, low: 2, close: 3, volume: 0 }]);
+    expect(series[0]).toBe(2);
+    expect(series[1]).toBeNull();
+  });
+
+  it("places Fibonacci levels between the two selected prices", () => {
+    const levels = fibLevels(100, 200);
+    expect(levels.find((level) => level.ratio === 0)?.price).toBe(100);
+    expect(levels.find((level) => level.ratio === 0.5)?.price).toBe(150);
+    expect(levels.find((level) => level.ratio === 1)?.price).toBe(200);
+    expect(levels.find((level) => level.ratio === 0.618)?.price).toBeCloseTo(161.8);
+  });
+});
+
+describe("closed trades", () => {
+  const leg = (side: "BUY" | "SELL", price: bigint, realized: bigint, id: string): FillLeg => ({
+    id, side, quantity: 10, pricePaise: price, chargesPaise: 0n, notionalPaise: price * 10n, realizedPaise: realized, executedAt: new Date("2026-10-10T04:00:00.000Z"), orderId: id,
+  });
+
+  it("keeps a profitable round trip and a losing round trip", () => {
+    const profit = summarizeRoundTrip([leg("BUY", 100_000n, 0n, "b1"), leg("SELL", 110_000n, 100_000n, "s1")]);
+    expect(profit?.netPaise).toBe(100_000n);
+    expect(profit?.quantity).toBe(10);
+    expect(profit?.exitExecutionId).toBe("s1");
+    const loss = summarizeRoundTrip([leg("BUY", 100_000n, 0n, "b2"), leg("SELL", 90_000n, -100_000n, "s2")]);
+    expect(loss?.netPaise).toBe(-100_000n);
+    expect(loss?.grossPaise).toBe(-100_000n);
   });
 });
 

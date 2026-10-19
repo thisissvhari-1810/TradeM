@@ -7,6 +7,7 @@ import { calculateCharges } from "@/lib/trading/fees";
 import { decideOrder, quoteIsStale, referencePrice, shouldTriggerResting, type QuoteView } from "@/lib/trading/decide";
 import { getQuote } from "@/server/market";
 import { getTradingSettings } from "@/server/settings";
+import { recordClosedPosition } from "@/server/closed-trades";
 import type { SessionUser } from "@/server/auth";
 
 type Tx = Prisma.TransactionClient;
@@ -322,6 +323,9 @@ async function fillLocked(
       filledAt: new Date(),
     },
   });
+  if (order.side === "SELL" && state.quantity > 0 && next.quantity === 0) {
+    await recordClosedPosition(tx, account, order.instrumentId, periodId);
+  }
   if (order.side === "BUY") {
     await awardBadge(tx, account.userId, "first-trade");
   }

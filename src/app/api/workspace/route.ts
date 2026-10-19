@@ -21,7 +21,11 @@ export const GET = query(async (request) => {
   if (view === "competitions") return Response.json(await listCompetitions(user));
   if (view === "watchlist") {
     const list = await prisma.watchlist.findFirst({ where: { userId: user.id, name: "Default" }, include: { items: { include: { instrument: true } } } });
-    return Response.json(list?.items.map((item) => ({ symbol: item.instrument.symbol, name: item.instrument.name })) ?? []);
+    return Response.json(list?.items.map((item) => ({ symbol: item.instrument.symbol, name: item.instrument.name, exchange: item.instrument.exchange })) ?? []);
+  }
+  if (view === "notifications") {
+    const notes = await prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 40 });
+    return Response.json(notes.map((note) => ({ id: note.id, title: note.title, body: note.body, href: note.href, read: Boolean(note.readAt), createdAt: note.createdAt.toISOString() })));
   }
   if (view === "alerts") {
     const alerts = await prisma.priceAlert.findMany({ where: { userId: user.id }, include: { instrument: true }, orderBy: { createdAt: "desc" } });
@@ -95,6 +99,12 @@ export const POST = mutation(async (request) => {
       data: { userId: user.id, instrumentId: instrument.id, condition: input.condition, targetPaise: rupeesToPaise(input.targetRupees), note: input.note ?? "" },
     });
     return Response.json({ id: alert.id });
+  }
+  if (action === "notification-read") {
+    const id = typeof body.id === "string" ? body.id : "";
+    if (id) await prisma.notification.updateMany({ where: { id, userId: user.id, readAt: null }, data: { readAt: new Date() } });
+    else await prisma.notification.updateMany({ where: { userId: user.id, readAt: null }, data: { readAt: new Date() } });
+    return Response.json({ ok: true });
   }
   if (action === "alert-cancel") {
     const id = z.string().parse(body.id);

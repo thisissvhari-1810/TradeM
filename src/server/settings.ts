@@ -1,3 +1,4 @@
+import { AppError } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_CHARGES, DEFAULT_RISK, DEFAULT_STARTING_CAPITAL_PAISE, type ChargeSettings, type RiskSettings, type TradingSettings } from "@/lib/trading/settings";
 
@@ -28,8 +29,44 @@ export async function getHolidays(): Promise<string[]> {
   return Array.isArray(row?.value) ? row.value.filter((item): item is string => typeof item === "string") : [];
 }
 
-export function configuredProvider(): "demo" | "twelvedata" | "alphavantage" {
+export function configuredProvider(): "demo" | "twelvedata" | "alphavantage" | "dhan" {
   const raw = (process.env.MARKET_DATA_PROVIDER ?? "demo").toLowerCase();
-  if (raw === "twelvedata" || raw === "alphavantage") return raw;
+  if (raw === "twelvedata" || raw === "alphavantage" || raw === "dhan") return raw;
   return "demo";
+}
+
+const DHAN_TOKEN_KEY = "market.dhanAccessToken";
+
+function jwtExpiryMs(token: string) {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(part, "base64url").toString("utf8")) as { exp?: unknown };
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getDhanAccessToken() {
+  const row = await prisma.appSetting.findUnique({ where: { key: DHAN_TOKEN_KEY } });
+  const saved = typeof row?.value === "string" ? row.value.trim() : "";
+  const token = saved.includes(".") ? saved : (process.env.MARKET_DATA_API_KEY?.trim() ?? "");
+  if (!token) throw new AppError("The Dhan access token is not set. Paste a new one on Admin, then Markets.", 503);
+  if (!token.includes(".")) throw new AppError("Dhan charts need the access token from Dhan Web. The API key cannot request market data by itself.", 503);
+  return token;
+}
+
+export async function dhanTokenStatus() {
+  const row = await prisma.appSetting.findUnique({ where: { key: DHAN_TOKEN_KEY } });
+  const saved = typeof row?.value === "string" ? row.value.trim() : "";
+  const usingSaved = saved.includes(".");
+  const token = usingSaved ? saved : (process.env.MARKET_DATA_API_KEY?.trim() ?? "");
+  const expiresAt = token.includes(".") ? jwtExpiryMs(token) : null;
+  return {
+    source: usingSaved ? "saved" : token ? "server" : "missing",
+    expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+    expired: expiresAt != null && expiresAt <= Date.now(),
+    updatedAt: usingSaved ? row?.updatedAt.toISOString() ?? null : null,
+  };
 }

@@ -1,7 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { api } from "@/components/api";
+import { PageFrame } from "@/components/page-frame";
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="mt-3 block text-[11px] uppercase tracking-[0.12em] text-muted">
+      {label}
+      <span className="mt-1 block normal-case tracking-normal">{children}</span>
+    </label>
+  );
+}
 
 type Journal = { id: string; thesis: string; expectedMove: string; plannedExit: string; riskReward: string; emotion: string; lesson: string; mistakeTag: string; createdAt: string; symbol: string | null; feedback: Array<{ body: string; author: string }> };
 
@@ -35,34 +45,37 @@ export default function JournalPage() {
     }
   }
   return (
-    <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-      <form onSubmit={onSubmit} className="rounded-xl border border-border bg-panel p-4">
-        <h1 className="text-xl font-semibold">Trading journal</h1>
-        {message ? <p className="mt-2 text-sm text-profit">{message}</p> : null}
-        {error ? <p className="mt-2 text-sm text-loss">{error}</p> : null}
-        <textarea name="thesis" required placeholder="Why this trade" className="mt-3 h-24 w-full rounded border border-border bg-elevated p-2 text-sm" />
-        <input name="expectedMove" placeholder="Expected move" className="mt-2 w-full rounded border border-border bg-elevated px-2 py-2 text-sm" />
-        <input name="plannedExit" placeholder="Planned exit" className="mt-2 w-full rounded border border-border bg-elevated px-2 py-2 text-sm" />
-        <input name="riskReward" placeholder="Risk/reward, for example 2" className="mt-2 w-full rounded border border-border bg-elevated px-2 py-2 text-sm" />
-        <select name="emotion" className="mt-2 w-full rounded border border-border bg-elevated px-2 py-2 text-sm">
-          {["NEUTRAL", "CALM", "CONFIDENT", "ANXIOUS", "FEARFUL", "GREEDY", "FRUSTRATED"].map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <input name="mistakeTag" placeholder="Mistake tag, if any" className="mt-2 w-full rounded border border-border bg-elevated px-2 py-2 text-sm" />
-        <textarea name="lesson" placeholder="Lesson learned" className="mt-2 h-20 w-full rounded border border-border bg-elevated p-2 text-sm" />
-        <button className="mt-3 rounded bg-primary px-3 py-2 text-sm text-white">Save entry</button>
-      </form>
-      <div className="space-y-3">
-        {rows.length === 0 ? <p className="text-sm text-muted">No journal entries yet.</p> : null}
-        {rows.map((row) => (
-          <article key={row.id} className="rounded-xl border border-border bg-panel p-4">
-            <p className="text-xs text-muted">{new Date(row.createdAt).toLocaleString("en-IN")} {row.symbol ? `· ${row.symbol}` : ""} · {row.emotion}</p>
-            <p className="mt-2">{row.thesis}</p>
-            <p className="mt-2 text-sm text-muted">Exit plan: {row.plannedExit || "—"} · R/R {row.riskReward || "—"} · {row.mistakeTag || "No mistake tag"}</p>
-            <p className="mt-2 text-sm">{row.lesson}</p>
-            {row.feedback.map((item) => <p key={item.body} className="mt-2 text-sm text-primary">Feedback from {item.author}: {item.body}</p>)}
-          </article>
-        ))}
+    <PageFrame kicker="Record" title="Journal" lede="Write the reason, the exit, and the lesson before the next simulated trade.">
+      <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <form onSubmit={onSubmit} className="h-fit rounded-lg border border-border bg-panel p-4">
+          {message ? <p className="mb-3 text-sm text-profit">{message}</p> : null}
+          {error ? <p className="mb-3 text-sm text-loss">{error}</p> : null}
+          <Field label="Why this trade"><textarea name="thesis" required className="h-24 w-full px-3 py-2 text-sm" /></Field>
+          <Field label="Expected move"><input name="expectedMove" className="w-full px-3 py-2 text-sm" /></Field>
+          <Field label="Planned exit"><input name="plannedExit" className="w-full px-3 py-2 text-sm" /></Field>
+          <Field label="Risk / reward"><input name="riskReward" placeholder="2" className="w-full px-3 py-2 text-sm" /></Field>
+          <Field label="Emotion">
+            <select name="emotion" className="w-full px-3 py-2 text-sm">
+              {["NEUTRAL", "CALM", "CONFIDENT", "ANXIOUS", "FEARFUL", "GREEDY", "FRUSTRATED"].map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </Field>
+          <Field label="Mistake tag"><input name="mistakeTag" className="w-full px-3 py-2 text-sm" /></Field>
+          <Field label="Lesson learned"><textarea name="lesson" className="h-20 w-full px-3 py-2 text-sm" /></Field>
+          <button className="mt-4 bg-primary px-4 py-2 text-sm text-white">Save entry</button>
+        </form>
+        <div className="space-y-3">
+          {rows.length === 0 ? <p className="rounded-lg border border-border bg-panel px-4 py-6 text-sm text-muted">No journal entries yet.</p> : null}
+          {rows.map((row) => (
+            <article key={row.id} className="rounded-lg border border-border bg-panel p-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-muted">{new Date(row.createdAt).toLocaleString("en-IN")} {row.symbol ? `· ${row.symbol}` : ""} · {row.emotion}</p>
+              <p className="mt-2 leading-6">{row.thesis}</p>
+              <p className="mt-2 text-sm text-muted">Exit plan: {row.plannedExit || "—"} · R/R {row.riskReward || "—"} · {row.mistakeTag || "No mistake tag"}</p>
+              {row.lesson ? <p className="mt-2 text-sm">{row.lesson}</p> : null}
+              {row.feedback.map((item) => <p key={item.body} className="mt-3 rounded-md bg-panel px-3 py-2 text-sm text-[#2962ff]">Feedback from {item.author}: {item.body}</p>)}
+            </article>
+          ))}
+        </div>
       </div>
-    </section>
+    </PageFrame>
   );
 }

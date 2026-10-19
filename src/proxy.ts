@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const guarded = ["/terminal", "/portfolio", "/orders", "/journal", "/learn", "/analytics", "/competitions", "/account", "/admin"];
+const guarded = ["/dashboard", "/terminal", "/chart", "/options", "/markets", "/screener", "/portfolio", "/orders", "/watchlist", "/journal", "/learn", "/analytics", "/competitions", "/notifications", "/history", "/help", "/account", "/admin"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,5 +15,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/terminal/:path*", "/portfolio/:path*", "/orders/:path*", "/journal/:path*", "/learn/:path*", "/analytics/:path*", "/competitions/:path*", "/account/:path*", "/admin/:path*", "/terminal", "/portfolio", "/orders", "/journal", "/learn", "/analytics", "/competitions", "/account", "/admin"],
+  matcher: ["/dashboard", "/terminal/:path*", "/chart/:path*", "/options", "/markets", "/screener", "/watchlist", "/notifications", "/history/:path*", "/history", "/help", "/portfolio/:path*", "/orders/:path*", "/journal/:path*", "/learn/:path*", "/analytics/:path*", "/competitions/:path*", "/account/:path*", "/admin/:path*", "/terminal", "/portfolio", "/orders", "/journal", "/learn", "/analytics", "/competitions", "/account", "/admin"],
 };

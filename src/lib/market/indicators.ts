@@ -69,6 +69,42 @@ export function macd(values: number[], fast = 12, slow = 26, signalPeriod = 9): 
   return { macd: macdLine, signal, histogram };
 }
 
+export function ema(values: number[], period: number): Array<number | null> {
+  const series: Array<number | null> = values.map(() => null);
+  if (period < 1 || values.length < period) return series;
+  const k = 2 / (period + 1);
+  let previous = values.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+  series[period - 1] = previous;
+  for (let index = period; index < values.length; index += 1) {
+    previous = values[index] * k + previous * (1 - k);
+    series[index] = previous;
+  }
+  return series;
+}
+
+export function bollinger(values: number[], period = 20, multiplier = 2): { middle: Array<number | null>; upper: Array<number | null>; lower: Array<number | null> } {
+  const middle = sma(values, period);
+  const upper = middle.map((mid, index) => {
+    if (mid == null) return null;
+    const slice = values.slice(index + 1 - period, index + 1);
+    const variance = slice.reduce((sum, value) => sum + (value - mid) ** 2, 0) / period;
+    return mid + multiplier * Math.sqrt(variance);
+  });
+  const lower = middle.map((mid, index) => (mid == null || upper[index] == null ? null : mid - ((upper[index] as number) - mid)));
+  return { middle, upper, lower };
+}
+
+export function vwap(bars: Array<{ high: number; low: number; close: number; volume: number }>): Array<number | null> {
+  let priceVolume = 0;
+  let volume = 0;
+  return bars.map((bar) => {
+    if (bar.volume <= 0) return null;
+    priceVolume += ((bar.high + bar.low + bar.close) / 3) * bar.volume;
+    volume += bar.volume;
+    return priceVolume / volume;
+  });
+}
+
 export function toLine(times: number[], series: Array<number | null>): LinePoint[] {
   return series.flatMap((value, index) => (value == null ? [] : [{ time: times[index], value }]));
 }

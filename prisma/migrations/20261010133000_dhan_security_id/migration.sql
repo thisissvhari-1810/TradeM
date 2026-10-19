@@ -1,0 +1,1 @@
+ALTER TABLE "Instrument" ADD COLUMN "dhanSecurityId" TEXT NOT NULL DEFAULT '';

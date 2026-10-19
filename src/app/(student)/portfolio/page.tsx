@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, tone } from "@/components/api";
+import { PageFrame, Stat } from "@/components/page-frame";
 
 type Portfolio = {
   startingCapital: string;
@@ -27,12 +29,11 @@ export default function PortfolioPage() {
   useEffect(() => {
     api<Portfolio>("/api/portfolio").then(setData).catch((caught) => setError(caught.message));
   }, []);
-  if (error) return <p className="text-loss">{error}</p>;
-  if (!data) return <p className="text-muted">Loading portfolio…</p>;
+  if (error) return <p className="rounded-lg border border-loss/40 bg-loss/10 px-4 py-3 text-sm text-loss">{error}</p>;
+  if (!data) return <p className="text-sm text-muted">Loading portfolio…</p>;
   return (
-    <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Portfolio</h1>
-      <div className="grid gap-3 sm:grid-cols-3">
+    <PageFrame kicker="Practice account" title="Portfolio" lede={`${data.valuationMessage} Performance return removes administrator cash adjustments.`}>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {[
           ["Equity", data.equity],
           ["Available", data.cashAvailable],
@@ -44,33 +45,37 @@ export default function PortfolioPage() {
           ["Today", data.dailyReturn ?? "—"],
           ["Charges", data.charges],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border border-border bg-panel p-4">
-            <p className="text-xs text-muted">{label}</p>
-            <p className={`mt-1 font-mono ${tone(value)}`}>{value}</p>
-          </div>
+          <Stat key={label} label={label} value={value} className={tone(value)} />
         ))}
       </div>
-      <p className="text-sm text-muted">{data.valuationMessage} Performance return removes administrator cash adjustments from the result.</p>
-      <div className="rounded-xl border border-border bg-panel p-4">
-        <h2 className="font-medium">Allocation</h2>
-        <div className="mt-3 space-y-2">
-          {data.allocation.map((item) => (
-            <div key={item.label} className="flex items-center justify-between text-sm">
-              <span>{item.label}</span>
-              <span className="font-mono text-muted">{item.percent}</span>
-            </div>
-          ))}
+      <div className="rounded-lg border border-border bg-panel p-4">
+        <h2 className="text-sm font-semibold">Allocation</h2>
+        <div className="mt-4 space-y-3">
+          {data.allocation.map((item) => {
+            const width = Math.max(0, Math.min(100, Number.parseFloat(item.percent) || 0));
+            return (
+              <div key={item.label}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span>{item.label}</span>
+                  <span className="font-mono text-muted">{item.percent}</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-panel">
+                  <div className="h-full rounded-full bg-[#2962ff]" style={{ width: `${width}%` }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-panel">
-        <table className="w-full text-left text-sm">
-          <thead className="text-muted"><tr><th className="p-3">Symbol</th><th>Qty</th><th>Avg cost</th><th>Value</th><th>Unrealized</th><th>Realized</th></tr></thead>
+      <div className="overflow-x-auto rounded-lg border border-border bg-panel">
+        <table className="text-sm">
+          <thead><tr><th>Symbol</th><th>Qty</th><th>Avg cost</th><th>Value</th><th>Unrealized</th><th>Realized</th></tr></thead>
           <tbody>
-            {data.positions.length === 0 ? <tr><td className="p-3 text-muted" colSpan={6}>No open holdings.</td></tr> : null}
+            {data.positions.length === 0 ? <tr><td className="text-muted" colSpan={6}>No open holdings.</td></tr> : null}
             {data.positions.map((position) => (
-              <tr key={position.symbol} className="border-t border-border">
-                <td className="p-3">{position.symbol}</td>
-                <td>{position.quantity}</td>
+              <tr key={position.symbol}>
+                <td className="font-medium"><Link href={`/terminal?symbol=${position.symbol}`}>{position.symbol}</Link></td>
+                <td className="font-mono">{position.quantity}</td>
                 <td className="font-mono">₹{position.averageCost}</td>
                 <td className="font-mono">{position.marketValue ? `₹${position.marketValue}` : "—"}</td>
                 <td className={`font-mono ${tone(position.unrealized)}`}>{position.unrealized ?? "—"}</td>
@@ -80,6 +85,6 @@ export default function PortfolioPage() {
           </tbody>
         </table>
       </div>
-    </section>
+    </PageFrame>
   );
 }

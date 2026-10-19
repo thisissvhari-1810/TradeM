@@ -1,17 +1,101 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0b1220;
-  --panel: #151f32;
-  --elevated: #1c2940;
-  --primary: #2563eb;
-  --profit: #22c55e;
+:root,
+[data-theme="obsidian"] {
+  --background: #0a0d14;
+  --panel: #141a26;
+  --elevated: #1b2434;
+  --primary: #d4af37;
+  --on-primary: #0a0d14;
+  --profit: #10b981;
   --loss: #ef4444;
+  --warning: #d4af37;
   --text: #f8fafc;
   --muted: #94a3b8;
-  --border: #2a3b56;
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --border: #243044;
+  --grid: #1e2636;
+  --font-sans: var(--font-manrope);
+  --font-mono: var(--font-plex);
+  --font-display: var(--font-newsreader);
+}
+
+[data-theme="terminal"] {
+  --background: #0b0e11;
+  --panel: #131722;
+  --elevated: #1c212d;
+  --primary: #2962ff;
+  --on-primary: #ffffff;
+  --profit: #26a69a;
+  --loss: #f23645;
+  --warning: #f0b90b;
+  --text: #d1d4dc;
+  --muted: #787b86;
+  --border: #2a2e39;
+  --grid: #222633;
+}
+
+[data-theme="amber"] {
+  --background: #0c0c0c;
+  --panel: #161616;
+  --elevated: #222222;
+  --primary: #ffb000;
+  --on-primary: #1a1200;
+  --profit: #26a69a;
+  --loss: #f23645;
+  --warning: #ffb000;
+  --text: #f8f1de;
+  --muted: #a89878;
+  --border: #2e2e2e;
+  --grid: #262626;
+}
+
+[data-theme="navy"] {
+  --background: #0b1220;
+  --panel: #121a2b;
+  --elevated: #1a2540;
+  --primary: #5b9fff;
+  --on-primary: #ffffff;
+  --profit: #26a69a;
+  --loss: #f23645;
+  --warning: #f0b90b;
+  --text: #e8eef8;
+  --muted: #8ea0bd;
+  --border: #243049;
+  --grid: #1c2942;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.chart-light {
+  --background: #ffffff;
+  --panel: #ffffff;
+  --elevated: #f8fafc;
+  --primary: #d4af37;
+  --on-primary: #111827;
+  --text: #111827;
+  --muted: #64748b;
+  --border: #e5e7eb;
+  --grid: #e5e7eb;
+}
+
+[data-theme="exchange"] {
+  --background: #f3f5f8;
+  --panel: #ffffff;
+  --elevated: #e8edf3;
+  --primary: #1d4ed8;
+  --on-primary: #ffffff;
+  --profit: #059669;
+  --loss: #dc2626;
+  --warning: #b45309;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #d6dee8;
+  --grid: #e2e8f0;
 }
 
 @theme inline {
@@ -19,6 +103,7 @@
   --color-panel: var(--panel);
   --color-elevated: var(--elevated);
   --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
   --color-profit: var(--profit);
   --color-loss: var(--loss);
   --color-text: var(--text);
@@ -26,19 +111,112 @@
   --color-border: var(--border);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  --font-serif: var(--font-display);
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(880px 280px at 0% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 62%),
+    var(--background);
   color: var(--text);
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-sans), "Manrope", "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display), "Newsreader", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }
 
 button, input, select, textarea {
   font: inherit;
 }
 
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.bg-panel {
+  background-color: var(--panel) !important;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.bg-elevated {
+  background-color: var(--elevated) !important;
+}
+
+.border-border {
+  border-color: var(--border) !important;
+}
+
+input, select, textarea {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--text);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+button {
+  border-radius: 4px;
+  transition: filter 160ms ease, background-color 160ms ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+.bg-primary {
+  background: var(--primary) !important;
+  color: var(--on-primary) !important;
+  box-shadow: none;
+}
+
+button.bg-profit {
+  background: var(--profit) !important;
+  color: #fff !important;
+}
+
+button.bg-loss {
+  background: var(--loss) !important;
+  color: #fff !important;
+}
+
 ::selection {
-  background: #2563eb;
-  color: white;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+table thead th {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+table td {
+  padding: 11px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+table tbody tr:hover td {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
 }

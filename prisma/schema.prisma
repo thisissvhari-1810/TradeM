@@ -132,6 +132,8 @@ model User {
   createdCompetitions  Competition[]        @relation("CompetitionCreator")
   createdLessons       Lesson[]             @relation("LessonAuthor")
   assignmentsCreated   Assignment[]
+  closedTrades         ClosedTrade[]
+  optionPaper          OptionPaperAccount?
 }
 
 model Session {
@@ -229,6 +231,7 @@ model VirtualAccount {
   orders    Order[]
   positions Position[]
   snapshots PortfolioSnapshot[]
+  closedTrades ClosedTrade[]
 }
 
 model PracticePeriod {
@@ -249,6 +252,7 @@ model PracticePeriod {
   positions    Position[]
   snapshots    PortfolioSnapshot[]
   participants CompetitionParticipant[]
+  closedTrades ClosedTrade[]
 
   @@unique([accountId, sequence])
   @@index([accountId])
@@ -287,6 +291,7 @@ model Instrument {
   lotSize   Int      @default(1)
   tickPaise Int      @default(5)
   isActive  Boolean  @default(true)
+  dhanSecurityId String @default("")
   basePaise Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -296,6 +301,7 @@ model Instrument {
   watchItems WatchlistItem[]
   alerts    PriceAlert[]
   quote     QuoteCache?
+  closedTrades ClosedTrade[]
 }
 
 model QuoteCache {
@@ -685,6 +691,41 @@ model Notification {
   @@index([userId, createdAt])
 }
 
+model ClosedTrade {
+  id               String   @id @default(cuid())
+  accountId        String
+  account          VirtualAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  practicePeriodId String
+  practicePeriod   PracticePeriod @relation(fields: [practicePeriodId], references: [id], onDelete: Restrict)
+  instrumentId     String
+  instrument       Instrument @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  symbol           String
+  name             String
+  exchange         String
+  direction        String   @default("LONG")
+  quantity         Int
+  entryAt          DateTime
+  avgEntryPaise    BigInt
+  exitAt           DateTime
+  avgExitPaise     BigInt
+  grossPaise       BigInt
+  chargesPaise     BigInt
+  netPaise         BigInt
+  returnBps        Int
+  holdingSeconds   Int
+  orderIds         Json
+  exitExecutionId  String   @unique
+  note             String   @default("")
+  receiptSvg       String   @default("") @db.Text
+  capturedAt       DateTime?
+  createdAt        DateTime @default(now())
+
+  @@index([userId, exitAt])
+  @@index([accountId, exitAt])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   actorId    String?
@@ -708,6 +749,79 @@ model AppSetting {
   value       Json
   updatedAt   DateTime @updatedAt
   updatedById String?
+}
+
+model OptionPaperAccount {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cashPaise        BigInt
+  dayKey           String   @default("")
+  dayEntries       Int      @default(0)
+  dayRealizedPaise BigInt   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  orders    OptionPaperOrder[]
+  positions OptionPaperPosition[]
+  signals   OptionSignalLog[]
+}
+
+model OptionPaperOrder {
+  id               String   @id @default(cuid())
+  accountId        String
+  account          OptionPaperAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  idempotencyKey   String
+  action           String
+  contractKey      String
+  lots             Int
+  quantity         Int
+  status           String
+  reason           String   @default("")
+  fillPremiumPaise BigInt?
+  chargesPaise     BigInt   @default(0)
+  simulated        Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  @@unique([accountId, idempotencyKey])
+  @@index([accountId, createdAt])
+}
+
+model OptionPaperPosition {
+  id                 String    @id @default(cuid())
+  accountId          String
+  account            OptionPaperAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contractKey        String
+  side               String
+  strike             Int
+  expiry             String
+  right              String
+  lots               Int
+  lotSize            Int
+  quantity           Int
+  avgPremiumPaise    BigInt
+  stopPremiumPaise   BigInt
+  targetPremiumPaise BigInt
+  chargesPaise       BigInt    @default(0)
+  status             String
+  exitPremiumPaise   BigInt?
+  realizedPaise      BigInt    @default(0)
+  openedAt           DateTime  @default(now())
+  closedAt           DateTime?
+
+  @@index([accountId, status])
+}
+
+model OptionSignalLog {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    OptionPaperAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  dedupeKey  String
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  @@unique([accountId, dedupeKey])
+  @@index([accountId, createdAt])
 }
 
 model MarketDataStatus {
